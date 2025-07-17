@@ -1,13 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Download, Eye, EyeOff, RefreshCw, User, Mail, Phone, Globe, MapPin } from 'lucide-react';
+import { 
+  Users, Download, Eye, EyeOff, RefreshCw, User, Mail, Phone, Globe, MapPin, 
+  Search, Filter, Moon, Sun, SortAsc, SortDesc, Heart, HeartOff, Share2, Copy
+} from 'lucide-react';
+import Toast from './components/Toast';
+import UserCard from './components/UserCard';
+import Stats from './components/Stats';
 import './App.css';
 
 function App() {
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showUsers, setShowUsers] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [darkMode, setDarkMode] = useState(false);
+  const [favorites, setFavorites] = useState([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'info', isVisible: false });
+
+  // Apply dark mode to body
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }, [darkMode]);
+
+  // Filter and sort users
+  useEffect(() => {
+    let filtered = [...users];
+    
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Favorites filter
+    if (showFavoritesOnly) {
+      filtered = filtered.filter(user => favorites.includes(user.id));
+    }
+    
+    // Sort
+    filtered.sort((a, b) => {
+      let aValue = a[sortBy];
+      let bValue = b[sortBy];
+      
+      if (sortBy === 'address') {
+        aValue = a.address.city;
+        bValue = b.address.city;
+      }
+      
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+    
+    setFilteredUsers(filtered);
+  }, [users, searchTerm, sortBy, sortOrder, favorites, showFavoritesOnly]);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type, isVisible: true });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, isVisible: false }));
+    }, 3000);
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -20,8 +93,10 @@ function App() {
       const data = await response.json();
       setUsers(data.slice(0, 10)); // Get first 10 users
       setShowUsers(true);
+      showToast('Users loaded successfully!', 'success');
     } catch (err) {
       setError(err.message);
+      showToast('Failed to load users', 'error');
     } finally {
       setLoading(false);
     }
@@ -29,6 +104,47 @@ function App() {
 
   const hideUsers = () => {
     setShowUsers(false);
+  };
+
+  const toggleFavorite = (userId) => {
+    setFavorites(prev => {
+      const isFavorite = prev.includes(userId);
+      if (isFavorite) {
+        showToast('Removed from favorites', 'info');
+        return prev.filter(id => id !== userId);
+      } else {
+        showToast('Added to favorites', 'success');
+        return [...prev, userId];
+      }
+    });
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard!', 'success');
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      showToast('Failed to copy', 'error');
+    }
+  };
+
+  const shareUser = async (user) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: user.name,
+          text: `Check out ${user.name} - ${user.email}`,
+          url: window.location.href
+        });
+        showToast('Shared successfully!', 'success');
+      } catch (err) {
+        console.error('Error sharing:', err);
+        showToast('Failed to share', 'error');
+      }
+    } else {
+      copyToClipboard(`${user.name} - ${user.email}`);
+    }
   };
 
   const containerVariants = {
@@ -41,19 +157,12 @@ function App() {
     }
   };
 
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        duration: 0.5
-      }
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      darkMode 
+        ? 'bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800' 
+        : 'bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500'
+    }`}>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <motion.div
@@ -62,17 +171,35 @@ function App() {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <motion.div
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-            className="inline-block mb-4"
-          >
-            <Users className="w-16 h-16 text-white mx-auto" />
-          </motion.div>
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+          <div className="flex justify-center items-center gap-4 mb-4">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+              className="inline-block"
+            >
+              <Users className={`w-16 h-16 ${darkMode ? 'text-white' : 'text-white'}`} />
+            </motion.div>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setDarkMode(!darkMode)}
+              className={`p-3 rounded-full ${
+                darkMode 
+                  ? 'bg-white/10 text-white hover:bg-white/20' 
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              } transition-all duration-300`}
+            >
+              {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
+            </motion.button>
+          </div>
+          <h1 className={`text-4xl md:text-6xl font-bold mb-4 drop-shadow-lg ${
+            darkMode ? 'text-white' : 'text-white'
+          }`}>
             Users PWA
           </h1>
-          <p className="text-xl text-white/90 max-w-2xl mx-auto">
+          <p className={`text-xl max-w-2xl mx-auto ${
+            darkMode ? 'text-white/90' : 'text-white/90'
+          }`}>
             A beautiful Progressive Web App to fetch and display users from JSONPlaceholder API
           </p>
         </motion.div>
@@ -114,6 +241,93 @@ function App() {
           )}
         </motion.div>
 
+        {/* Search and Filter Controls */}
+        <AnimatePresence>
+          {showUsers && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-6xl mx-auto mb-8"
+            >
+              {/* Stats */}
+              <Stats users={users} favorites={favorites} darkMode={darkMode} />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 rounded-lg border-2 transition-all duration-300 ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400' 
+                        : 'bg-white/90 border-white/20 text-gray-800 placeholder-gray-500 focus:border-blue-400'
+                    }`}
+                  />
+                </div>
+
+                {/* Sort */}
+                <div className="flex gap-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all duration-300 ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white' 
+                        : 'bg-white/90 border-white/20 text-gray-800'
+                    }`}
+                  >
+                    <option value="name">Name</option>
+                    <option value="email">Email</option>
+                    <option value="username">Username</option>
+                    <option value="address">City</option>
+                  </select>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className={`px-4 py-3 rounded-lg border-2 transition-all duration-300 ${
+                      darkMode 
+                        ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700' 
+                        : 'bg-white/90 border-white/20 text-gray-800 hover:bg-white'
+                    }`}
+                  >
+                    {sortOrder === 'asc' ? <SortAsc className="w-5 h-5" /> : <SortDesc className="w-5 h-5" />}
+                  </button>
+                </div>
+
+                {/* Favorites Toggle */}
+                <button
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all duration-300 ${
+                    showFavoritesOnly
+                      ? 'bg-red-500 border-red-500 text-white'
+                      : darkMode
+                        ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
+                        : 'bg-white/90 border-white/20 text-gray-800 hover:bg-white'
+                  }`}
+                >
+                  {showFavoritesOnly ? <HeartOff className="w-5 h-5" /> : <Heart className="w-5 h-5" />}
+                  {showFavoritesOnly ? 'All Users' : 'Favorites'}
+                </button>
+
+                {/* Stats */}
+                <div className={`flex items-center justify-center px-4 py-3 rounded-lg border-2 ${
+                  darkMode 
+                    ? 'bg-gray-800 border-gray-600 text-white' 
+                    : 'bg-white/90 border-white/20 text-gray-800'
+                }`}>
+                  <span className="text-sm">
+                    {filteredUsers.length} of {users.length} users
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Error Message */}
         <AnimatePresence>
           {error && (
@@ -138,62 +352,39 @@ function App() {
               transition={{ duration: 0.5 }}
               className="max-w-6xl mx-auto"
             >
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              >
-                {users.map((user, index) => (
-                  <motion.div
-                    key={user.id}
-                    variants={itemVariants}
-                    whileHover={{ 
-                      scale: 1.02,
-                      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)"
-                    }}
-                    className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20"
-                  >
-                    <div className="flex items-center mb-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-4">
-                        <User className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-800">{user.name}</h3>
-                        <p className="text-gray-600">@{user.username}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <Mail className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm truncate">{user.email}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <Phone className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">{user.phone}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <Globe className="w-4 h-4 text-purple-500" />
-                        <span className="text-sm truncate">{user.website}</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-3 text-gray-700">
-                        <MapPin className="w-4 h-4 text-red-500" />
-                        <span className="text-sm truncate">{user.address.city}, {user.address.country}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="text-xs text-gray-500">
-                        Company: {user.company.name}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </motion.div>
+              {filteredUsers.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`text-center py-12 ${
+                    darkMode ? 'text-white/70' : 'text-white/70'
+                  }`}
+                >
+                  <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-xl">No users found</p>
+                  <p className="text-sm mt-2">Try adjusting your search or filters</p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                >
+                  {filteredUsers.map((user, index) => (
+                    <UserCard
+                      key={user.id}
+                      user={user}
+                      isFavorite={favorites.includes(user.id)}
+                      onToggleFavorite={toggleFavorite}
+                      onShare={shareUser}
+                      onCopy={copyToClipboard}
+                      darkMode={darkMode}
+                      index={index}
+                    />
+                  ))}
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -203,12 +394,22 @@ function App() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="text-center mt-16 text-white/70"
+          className={`text-center mt-16 ${
+            darkMode ? 'text-white/70' : 'text-white/70'
+          }`}
         >
           <p>Built with React, Framer Motion & Tailwind CSS</p>
           <p className="text-sm mt-2">Data from JSONPlaceholder API</p>
         </motion.footer>
       </div>
+
+      {/* Toast Notifications */}
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        isVisible={toast.isVisible}
+        onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+      />
     </div>
   );
 }
