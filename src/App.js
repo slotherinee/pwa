@@ -236,7 +236,7 @@ function App() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
+    <div className={`transition-colors duration-300 ${
       darkMode 
         ? 'bg-gradient-to-br from-gray-900 via-purple-900 to-gray-800' 
         : 'bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500'
