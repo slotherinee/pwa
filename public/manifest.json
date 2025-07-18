@@ -5,7 +5,7 @@
   "description": "A beautiful PWA to fetch and display users from JSONPlaceholder API",
   "start_url": "/",
   "scope": "/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
   "orientation": "portrait",
