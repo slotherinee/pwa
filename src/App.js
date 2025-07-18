@@ -2,11 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Download, Eye, EyeOff, RefreshCw, User, Mail, Phone, Globe, MapPin, 
-  Search, Filter, Moon, Sun, SortAsc, SortDesc, Heart, HeartOff, Share2, Copy
+  Search, Filter, Moon, Sun, SortAsc, SortDesc, Heart, HeartOff, Share2, Copy,
+  FileDown, Settings, Grid, List
 } from 'lucide-react';
 import Toast from './components/Toast';
 import UserCard from './components/UserCard';
+import MagneticCard from './components/MagneticCard';
 import Stats from './components/Stats';
+import UserModal from './components/UserModal';
+import Confetti from './components/Confetti';
+import ExportModal from './components/ExportModal';
+import Pagination from './components/Pagination';
+import LoadingParticles from './components/LoadingParticles';
 import './App.css';
 
 function App() {
@@ -22,6 +29,13 @@ function App() {
   const [favorites, setFavorites] = useState([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'info', isVisible: false });
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
+  const [viewMode, setViewMode] = useState('magnetic'); // 'magnetic' or 'normal'
 
   // Apply dark mode to body
   useEffect(() => {
@@ -73,7 +87,14 @@ function App() {
     });
     
     setFilteredUsers(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [users, searchTerm, sortBy, sortOrder, favorites, showFavoritesOnly]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, endIndex);
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type, isVisible: true });
@@ -114,6 +135,7 @@ function App() {
         return prev.filter(id => id !== userId);
       } else {
         showToast('Added to favorites', 'success');
+        setShowConfetti(true);
         return [...prev, userId];
       }
     });
@@ -147,6 +169,17 @@ function App() {
     }
   };
 
+  const viewUserDetails = (user) => {
+    setSelectedUser(user);
+    setShowUserModal(true);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Scroll to top of users section
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -155,6 +188,25 @@ function App() {
         staggerChildren: 0.1
       }
     }
+  };
+
+  const renderUserCard = (user, index) => {
+    const cardProps = {
+      user,
+      isFavorite: favorites.includes(user.id),
+      onToggleFavorite: toggleFavorite,
+      onShare: shareUser,
+      onCopy: copyToClipboard,
+      onViewDetails: viewUserDetails,
+      darkMode,
+      index
+    };
+
+    return viewMode === 'magnetic' ? (
+      <MagneticCard key={user.id} {...cardProps} />
+    ) : (
+      <UserCard key={user.id} {...cardProps} />
+    );
   };
 
   return (
@@ -227,17 +279,31 @@ function App() {
           </motion.button>
 
           {showUsers && (
-            <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(239, 68, 68, 0.4)" }}
-              whileTap={{ scale: 0.95 }}
-              onClick={hideUsers}
-              className="flex items-center justify-center gap-2 px-8 py-4 bg-red-500 text-white rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
-            >
-              <EyeOff className="w-5 h-5" />
-              Hide Users
-            </motion.button>
+            <>
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(239, 68, 68, 0.4)" }}
+                whileTap={{ scale: 0.95 }}
+                onClick={hideUsers}
+                className="flex items-center justify-center gap-2 px-8 py-4 bg-red-500 text-white rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <EyeOff className="w-5 h-5" />
+                Hide Users
+              </motion.button>
+              
+              <motion.button
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(34, 197, 94, 0.4)" }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowExportModal(true)}
+                className="flex items-center justify-center gap-2 px-8 py-4 bg-green-500 text-white rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                <FileDown className="w-5 h-5" />
+                Export
+              </motion.button>
+            </>
           )}
         </motion.div>
 
@@ -253,7 +319,7 @@ function App() {
               {/* Stats */}
               <Stats users={users} favorites={favorites} darkMode={darkMode} />
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -313,6 +379,21 @@ function App() {
                   {showFavoritesOnly ? 'All Users' : 'Favorites'}
                 </button>
 
+                {/* View Mode Toggle */}
+                <button
+                  onClick={() => setViewMode(viewMode === 'magnetic' ? 'normal' : 'magnetic')}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all duration-300 ${
+                    viewMode === 'magnetic'
+                      ? 'bg-purple-500 border-purple-500 text-white'
+                      : darkMode
+                        ? 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
+                        : 'bg-white/90 border-white/20 text-gray-800 hover:bg-white'
+                  }`}
+                >
+                  {viewMode === 'magnetic' ? <Grid className="w-5 h-5" /> : <List className="w-5 h-5" />}
+                  {viewMode === 'magnetic' ? 'Magnetic' : 'Normal'}
+                </button>
+
                 {/* Stats */}
                 <div className={`flex items-center justify-center px-4 py-3 rounded-lg border-2 ${
                   darkMode 
@@ -352,7 +433,9 @@ function App() {
               transition={{ duration: 0.5 }}
               className="max-w-6xl mx-auto"
             >
-              {filteredUsers.length === 0 ? (
+              {loading ? (
+                <LoadingParticles darkMode={darkMode} />
+              ) : filteredUsers.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -365,25 +448,25 @@ function App() {
                   <p className="text-sm mt-2">Try adjusting your search or filters</p>
                 </motion.div>
               ) : (
-                <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                >
-                  {filteredUsers.map((user, index) => (
-                    <UserCard
-                      key={user.id}
-                      user={user}
-                      isFavorite={favorites.includes(user.id)}
-                      onToggleFavorite={toggleFavorite}
-                      onShare={shareUser}
-                      onCopy={copyToClipboard}
-                      darkMode={darkMode}
-                      index={index}
-                    />
-                  ))}
-                </motion.div>
+                <>
+                  <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  >
+                    {currentUsers.map((user, index) => renderUserCard(user, index))}
+                  </motion.div>
+
+                  {/* Pagination */}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    darkMode={darkMode}
+                    itemsPerPage={itemsPerPage}
+                  />
+                </>
               )}
             </motion.div>
           )}
@@ -409,6 +492,31 @@ function App() {
         type={toast.type}
         isVisible={toast.isVisible}
         onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+      />
+
+      {/* User Modal */}
+      <UserModal
+        user={selectedUser}
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
+        isFavorite={selectedUser ? favorites.includes(selectedUser.id) : false}
+        onToggleFavorite={toggleFavorite}
+        darkMode={darkMode}
+      />
+
+      {/* Confetti */}
+      <Confetti
+        isVisible={showConfetti}
+        onComplete={() => setShowConfetti(false)}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        users={users}
+        favorites={favorites}
+        darkMode={darkMode}
       />
     </div>
   );

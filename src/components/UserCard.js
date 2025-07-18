@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Globe, MapPin, Heart, Share2, Copy, ExternalLink } from 'lucide-react';
+import { User, Mail, Phone, Globe, MapPin, Heart, Share2, Copy, ExternalLink, Eye } from 'lucide-react';
 
 const UserCard = ({ 
   user, 
@@ -8,6 +8,7 @@ const UserCard = ({
   onToggleFavorite, 
   onShare, 
   onCopy, 
+  onViewDetails,
   darkMode,
   index 
 }) => {
@@ -68,6 +69,19 @@ const UserCard = ({
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
+            onClick={() => onViewDetails(user)}
+            className={`p-2 rounded-full transition-colors duration-300 ${
+              darkMode
+                ? 'text-gray-400 hover:text-blue-400'
+                : 'text-gray-400 hover:text-blue-500'
+            }`}
+            title="View details"
+          >
+            <Eye className="w-5 h-5" />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => onToggleFavorite(user.id)}
             className={`p-2 rounded-full transition-colors duration-300 ${
               isFavorite
@@ -76,6 +90,7 @@ const UserCard = ({
                   ? 'text-gray-400 hover:text-red-400'
                   : 'text-gray-400 hover:text-red-500'
             }`}
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
             <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
           </motion.button>
@@ -88,6 +103,7 @@ const UserCard = ({
                 ? 'text-gray-400 hover:text-blue-400'
                 : 'text-gray-400 hover:text-blue-500'
             }`}
+            title="Share user"
           >
             <Share2 className="w-5 h-5" />
           </motion.button>
@@ -113,6 +129,7 @@ const UserCard = ({
                 ? 'text-gray-400 hover:text-blue-400'
                 : 'text-gray-400 hover:text-blue-500'
             }`}
+            title="Copy email"
           >
             <Copy className="w-4 h-4" />
           </motion.button>
@@ -145,6 +162,7 @@ const UserCard = ({
                 ? 'text-gray-400 hover:text-purple-400'
                 : 'text-gray-400 hover:text-purple-500'
             }`}
+            title="Visit website"
           >
             <ExternalLink className="w-4 h-4" />
           </motion.button>
